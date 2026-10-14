@@ -7,6 +7,8 @@ import com.payflow.model.enums.CardStatus;
 import com.payflow.model.enums.CardType;
 import com.payflow.model.enums.TransactionStatus;
 import com.payflow.model.enums.TransactionType;
+import com.payflow.model.FraudResult;
+import com.payflow.model.enums.FraudRisk;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,6 +19,7 @@ public class PaymentProcessor {
 
     // CardValidator to validate card details
     private CardValidator cardValidator;
+    private FraudDetector fraudDetector;
 
     // Store all transactions
     // ArrayList = ordered list of transactions
@@ -30,6 +33,7 @@ public class PaymentProcessor {
     // Constructor
     public PaymentProcessor() {
         this.cardValidator      = new CardValidator();
+        this.fraudDetector      = new FraudDetector();
         this.transactionHistory = new ArrayList<>();
         this.transactionMap     = new HashMap<>();
     }
@@ -101,6 +105,32 @@ public class PaymentProcessor {
                     "Insufficient funds",
                     "51");   // Response code 51 = Insufficient funds
         }
+        FraudResult fraudResult = fraudDetector.checkFraud(
+                card.getMaskedCardNumber(),
+                request.getAmount()
+        );
+
+        // HIGH risk → Decline
+        if (fraudResult.getRiskLevel() == FraudRisk.HIGH) {
+            return createDeclinedTransaction(
+                    request, card,
+                    "Fraud suspected. " +
+                            fraudResult.getTriggeredRules(),
+                    "59"
+            );
+        }
+
+        // MEDIUM risk → Approve with warning
+        if (fraudResult.getRiskLevel() == FraudRisk.MEDIUM) {
+            Transaction flaggedTxn =
+                    createApprovedTransaction(request, card);
+            flaggedTxn.setDeclineReason(
+                    "WARNING: Suspicious activity. " +
+                            fraudResult.getTriggeredRules()
+            );
+            return flaggedTxn;
+        }
+
 
         // ── STEP 6: Approve Transaction ───────────
         return createApprovedTransaction(request, card);
@@ -138,6 +168,7 @@ public class PaymentProcessor {
 
         return transaction;
     }
+
     private Transaction createApprovedTransaction(
             PaymentRequest request,
             Card card) {
@@ -180,6 +211,7 @@ public class PaymentProcessor {
                 transaction.getTransactionId(),
                 transaction
         );
+        fraudDetector.recordTransaction(transaction);
     }
 
     // Generate random 6 digit auth code
@@ -187,5 +219,6 @@ public class PaymentProcessor {
         int code = (int)(Math.random() * 900000) + 100000;
         return String.valueOf(code);
     }
+
 
 }

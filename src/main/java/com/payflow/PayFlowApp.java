@@ -14,7 +14,7 @@ public class PayFlowApp {
 
         // Create processor
         PaymentProcessor processor = new PaymentProcessor();
-        CardValidator validator    = new CardValidator();
+        CardValidator validator = new CardValidator();
 
         // ── Create a Card ──────────────────────
         Card card = new Card(
@@ -33,7 +33,7 @@ public class PayFlowApp {
         card.setAvailableBalance(5000.00);
         card.setCreditLimit(10000.00);
 
-        // ── TEST 1: Valid Payment ──────────────
+       /* // ── TEST 1: Valid Payment ──────────────
         System.out.println("=== TEST 1: Valid Payment ===");
         PaymentRequest request1 = new PaymentRequest();
         request1.setCardNumber("4532015112830366");
@@ -105,5 +105,27 @@ public class PayFlowApp {
 
         Transaction result4 = processor.processPayment(request4, card);
         System.out.println(result4);
+    }*/
+        System.out.println("=== FRAUD TEST: Velocity ===");
+        for (int i = 0; i < 4; i++) {
+            PaymentRequest request = new PaymentRequest();
+            request.setCardNumber("4532015112830366");
+            request.setExpiryMonth("12");
+            request.setExpiryYear("26");
+            request.setAmount(500.00);
+            request.setCurrency("INR");
+            request.setTransactionType(TransactionType.PURCHASE);
+            request.setStan("99999" + i);
+            request.setMerchantId("MERCH001");
+            request.setMerchantName("Amazon India");
+            request.setTerminalId("TERM001");
+
+            Transaction result = processor.processPayment(request, card);
+            System.out.println(
+                    "Transaction " + (i + 1) +
+                            ": " + result.getStatus() +
+                            " | " + result.getDeclineReason()
+            );
+        }
     }
 }
